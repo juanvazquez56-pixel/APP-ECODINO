@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database.types';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
@@ -15,3 +15,12 @@ export const supabase = createClient<Database>(url, key, {
     detectSessionInUrl: true,
   },
 });
+
+/**
+ * Cliente sin tipar para las tablas operativas (reportes, auditorías y
+ * sub-tablas) que aún no están en `database.types.ts`. Una vez que generes
+ * los tipos con la CLI de Supabase puedes migrar estas consultas al cliente
+ * tipado `supabase`.
+ */
+export const sb = supabase as unknown as SupabaseClient;
+

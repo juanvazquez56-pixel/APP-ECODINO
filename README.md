@@ -201,8 +201,89 @@ supabase/
 - Layout base mobile-first y componentes compartidos.
 - Homes placeholder por rol.
 
-**Bloque 2** (pendiente): captura de checklists, asistencia, actividades, EPP,
-permisos, auditorías; sync offline con Dexie; fotos y firmas.
+**Bloque 2 — Módulos operativos** ✅
+- Motor de sincronización offline-first con Dexie.js sobre IndexedDB.
+- Módulos completos de Supervisor, Segurista y Auditor (checklists, tablas
+  dinámicas, EPP, permisos, charla, muestreo, hallazgos, fotos y firmas).
+- Componentes avanzados, geolocalización silenciosa y compresión de imágenes.
 
 **Bloque 3** (pendiente): dashboard administrativo con KPIs/gráficas y Edge
 Functions (PDF, notificaciones, KPIs).
+
+---
+
+## 13. Bloque 2 — Módulos operativos
+
+### 13.1 Requisito en Supabase: bucket de Storage
+
+Las fotos y firmas se suben a un bucket de Storage llamado **`reports-photos`**.
+Créalo una sola vez:
+
+1. Dashboard de Supabase → **Storage → New bucket**.
+2. Nombre: `reports-photos`. Déjalo **privado** (las apps lo acceden con la
+   sesión del usuario).
+3. Agrega políticas de acceso para usuarios autenticados (SQL Editor):
+
+   ```sql
+   -- Subir/leer fotos solo para usuarios autenticados
+   create policy "auth_upload_reports_photos"
+     on storage.objects for insert to authenticated
+     with check (bucket_id = 'reports-photos');
+
+   create policy "auth_read_reports_photos"
+     on storage.objects for select to authenticated
+     using (bucket_id = 'reports-photos');
+
+   create policy "auth_update_reports_photos"
+     on storage.objects for update to authenticated
+     using (bucket_id = 'reports-photos');
+   ```
+
+### 13.2 Cómo funciona el sync offline
+
+- Todo lo que captura el usuario se guarda primero en **IndexedDB (Dexie)**.
+- Al **enviar**, el reporte queda con `syncStatus: 'pending'` y se captura la
+  geolocalización en silencio (campo que solo lee gerencia).
+- El **motor de sync** (`src/db/sync.ts`) sube la cabecera (upsert idempotente
+  por `id`), luego las fotos al bucket `reports-photos`, y finalmente reescribe
+  los `*_path` en las tablas. Reintenta hasta 3 veces con backoff (2s/8s/32s);
+  al tercer fallo deja el registro en `error` para reintento manual desde el
+  `SyncBadge`.
+- Dispara al volver `online` y cada 30 s como respaldo.
+
+### 13.3 Probar el flujo offline (Chrome DevTools)
+
+1. `npm run dev` e inicia sesión como supervisor.
+2. Abre **DevTools (F12) → Network → Throttling → Offline**.
+3. Crea un reporte, llena secciones, toma fotos (en desktop se usa el selector
+   de archivos) y firma con el dedo/mouse.
+4. Pulsa **Enviar reporte**: verás el `SyncBadge` en amarillo "1 pendiente".
+   La app sigue funcionando sin errores.
+5. Cambia Throttling a **Online**: el reporte sube solo. Verifica en
+   **Supabase → Table Editor** que aparece en `supervisor_reports` y que las
+   fotos quedaron en el bucket con su `*_path` actualizado.
+
+### 13.4 Checklist de QA manual
+
+- [ ] **Supervisor**: crear reporte → 10 secciones → fotos → firma → enviar.
+- [ ] Apagar WiFi a medio llenado: se puede seguir sin perder datos.
+- [ ] Enviar offline → `SyncBadge` amarillo; al reconectar sube solo.
+- [ ] Actividad "Cerrado" sin ambas fotos → se reclasifica a "Cerrado con
+      observación" automáticamente al enviar.
+- [ ] **Segurista**: mismo flujo, con charla pre-operacional obligatoria y
+      firma cruzada del supervisor; un "Accidente" exige foto + descripción
+      ≥ 50 caracteres.
+- [ ] **Auditor**: marcar los criterios, ver el semáforo en vivo, ≥ 2 muestreos;
+      si sale **rojo** exige al menos un hallazgo con acción correctiva.
+- [ ] Banner de cruce del auditor: muestra si supervisor/segurista ya
+      entregaron su reporte de esa planta y fecha (requiere conexión).
+- [ ] `DynamicTable` usable en viewport de tablet (~800×1280) en cards.
+- [ ] `capture_lat`/`capture_lng` no nulos en la tabla remota tras enviar, sin
+      mostrarse nunca en la UI operativa.
+
+### 13.5 Notas técnicas
+
+- Nuevas dependencias: `dexie`, `dexie-react-hooks`.
+- `src/db/supabase.ts` exporta `sb`, un cliente sin tipar para las tablas
+  operativas aún no presentes en `database.types.ts`. Cuando generes los tipos
+  con `npm run supabase:types`, puedes migrar esas consultas al cliente tipado.

@@ -4,6 +4,7 @@ import { router } from '@/app/router';
 import { Providers } from '@/app/providers';
 import { useAuth } from '@/auth/useAuth';
 import { Loading } from '@/shared/components/Loading';
+import { startSyncEngine } from '@/db/sync';
 
 export function App() {
   const loading = useAuth((s) => s.loading);
@@ -11,6 +12,7 @@ export function App() {
 
   useEffect(() => {
     void initialize();
+    startSyncEngine();
   }, [initialize]);
 
   if (loading) return <Loading text="Iniciando sesión…" />;

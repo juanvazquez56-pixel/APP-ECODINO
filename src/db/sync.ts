@@ -189,10 +189,15 @@ export async function forceSyncNow(): Promise<void> {
   if (!navigator.onLine) return;
   running = true;
   try {
-    // Reactivar entidades en error para reintento manual.
+    // Recuperar entidades atascadas: 'error' (reintento manual) y 'syncing'
+    // huérfanas. Como forceSyncNow está protegido por `running`, si llegamos
+    // aquí no hay ninguna sincronización en curso, así que cualquier registro
+    // en 'syncing' quedó a medias (p. ej. la app se cerró tras subir al
+    // servidor pero antes de marcarlo 'synced'). El reproceso es idempotente
+    // (upsert por id + borrado/reinserción de sub-tablas), así que es seguro.
     for (const table of REPORT_TABLES) {
-      const errored = await table.where('syncStatus').equals('error').toArray();
-      for (const rec of errored) {
+      const stale = await table.where('syncStatus').anyOf('error', 'syncing').toArray();
+      for (const rec of stale) {
         await table.update(rec.localId, { syncStatus: 'pending' });
       }
     }

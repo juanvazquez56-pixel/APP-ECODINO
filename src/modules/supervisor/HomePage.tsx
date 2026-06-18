@@ -11,6 +11,7 @@ import { db } from '@/db/dexie';
 import { formatDate } from '@/shared/utils/formatDate';
 import { SUPERVISOR_CHECKLIST_TOTAL } from '@/catalogs/supervisor-checklist';
 import { useSupervisorStore } from '@/modules/supervisor/store';
+import { ReminderBanner } from '@/modules/admin/components/ReminderBanner';
 
 function checklistPct(responses: Record<string, boolean> | undefined): number {
   if (!responses) return 0;
@@ -52,6 +53,7 @@ export function SupervisorHome() {
       />
 
       <main className="flex flex-1 flex-col gap-4 p-4">
+        <ReminderBanner />
         <p className="text-sm text-slate-500">Hola, {profile?.full_name}</p>
 
         {todayReport ? (

@@ -207,8 +207,15 @@ supabase/
   dinámicas, EPP, permisos, charla, muestreo, hallazgos, fotos y firmas).
 - Componentes avanzados, geolocalización silenciosa y compresión de imágenes.
 
-**Bloque 3** (pendiente): dashboard administrativo con KPIs/gráficas y Edge
-Functions (PDF, notificaciones, KPIs).
+**Bloque 3 — Dashboard admin + PDF + recordatorios + deploy** ✅
+- Capa de KPIs en Postgres (`0004_dashboard_kpis.sql`): vistas + funciones RPC.
+- Dashboard admin en `/admin/*` (Home con KPIs y 2 gráficas recharts, Registros
+  con filtros y detalle, Hallazgos con seguimiento, Catálogos plantas/personal).
+- PDF client-side con `@react-pdf/renderer` (plantilla genérica, carga diferida).
+- Banner de recordatorio in-app por rol y horario operativo.
+- `vercel.json` para SPA/PWA + guía de deploy.
+
+Consulta **`BLOQUE_3_INSTRUCCIONES.md`** para los pasos de migración y deploy.
 
 ---
 
